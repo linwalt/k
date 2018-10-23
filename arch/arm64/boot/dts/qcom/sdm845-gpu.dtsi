@@ -65,6 +65,9 @@
 
 		qcom,idle-timeout = <58>; //msecs
 
+		/* To disable GPU wake up on touch event */
+		qcom,disable-wake-on-touch;
+
 		qcom,highest-bank-bit = <15>;
 
 		qcom,min-access-length = <32>;
