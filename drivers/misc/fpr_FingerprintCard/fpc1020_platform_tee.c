@@ -25,6 +25,8 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/corepower.h>
+#include <linux/display_state.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -487,9 +489,11 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	pr_info("fpc1020 irq handler: %s\n", __func__);
 	mutex_lock(&fpc1020->lock);
 	if (atomic_read(&fpc1020->wakeup_enabled)) {
-		fpc1020->nbr_irqs_received++;
-		__pm_wakeup_event(&fpc1020->ttw_wl,
-					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
+		__pm_wakeup_event(&fpc1020->ttw_wakesrc, FPC_TTW_HOLD_TIME);
+	}
+
+	if (!is_display_on()) {
+		corepower_wake();
 	}
 	mutex_unlock(&fpc1020->lock);
 
