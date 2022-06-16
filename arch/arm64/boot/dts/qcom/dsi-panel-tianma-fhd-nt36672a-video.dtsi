@@ -31,7 +31,7 @@
 		qcom,mdss-dsi-traffic-mode = "burst_mode";
 		qcom,mdss-dsi-bllp-eof-power-mode;
 		qcom,mdss-dsi-bllp-power-mode;
-		qcom,mdss-dsi-lp11-init;
+ 		qcom,mdss-dsi-lp11-init;
 		qcom,mdss-dsi-lane-0-state;
 		qcom,mdss-dsi-lane-1-state;
 		qcom,mdss-dsi-lane-2-state;
@@ -56,7 +56,12 @@
 		qcom,esd-err-irq-gpio = <&tlmm 10 0x2001>; /* trig-flags: falling-0x0002 rasing-0x0001*/
 
 		qcom,dispparam-enabled;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		qcom,mdss-panel-on-dimming-delay = <120>;
+
+		qcom,ulps-enabled;
+ 		qcom,suspend-ulps-enabled;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
@@ -74,6 +79,7 @@
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
 				qcom,mdss-dsi-v-bottom-border = <0>;
+				qcom,mdss-dsi-panel-jitter = <0x8 0xa>;
 
 				qcom,mdss-dsi-on-command = [
 						/* skin enhancement mode */

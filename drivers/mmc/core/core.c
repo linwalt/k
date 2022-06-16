@@ -64,6 +64,8 @@
 /* The max erase timeout, used when host->max_busy_timeout isn't specified */
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
 
+#define MMC_CACHE_FLUSH_TIMEOUT_MS     (30 * 1000) /* 30s */
+
 static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
 /*
@@ -71,7 +73,7 @@ static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
  * performance cost, and for other reasons may not always be desired.
  * So we allow it it to be disabled.
  */
-bool use_spi_crc = 1;
+bool use_spi_crc = 0;
 module_param(use_spi_crc, bool, 0);
 
 static int mmc_schedule_delayed_work(struct delayed_work *work,
@@ -4740,7 +4742,8 @@ int mmc_flush_cache(struct mmc_card *card)
 			(card->ext_csd.cache_ctrl & 1) &&
 			(!(card->quirks & MMC_QUIRK_CACHE_DISABLE))) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				EXT_CSD_FLUSH_CACHE, 1, 0);
+				EXT_CSD_FLUSH_CACHE, 1,
+				 MMC_CACHE_FLUSH_TIMEOUT_MS);
 		if (err == -ETIMEDOUT) {
 			pr_err("%s: cache flush timeout\n",
 					mmc_hostname(card->host));

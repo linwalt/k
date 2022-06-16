@@ -499,6 +499,7 @@ struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
 
 	if (dst && dst->obsolete && dst->ops->check(dst, cookie) == NULL) {
 		sk_tx_queue_clear(sk);
+		sk->sk_dst_pending_confirm = 0;
 		RCU_INIT_POINTER(sk->sk_dst_cache, NULL);
 		dst_release(dst);
 		return NULL;
@@ -852,6 +853,13 @@ set_rcvbuf:
 				sk->sk_tskey = 0;
 			}
 		}
+
+		if (val & SOF_TIMESTAMPING_OPT_STATS &&
+		    !(val & SOF_TIMESTAMPING_OPT_TSONLY)) {
+			ret = -EINVAL;
+			break;
+		}
+
 		sk->sk_tsflags = val;
 		if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
 			sock_enable_timestamp(sk,
@@ -989,6 +997,10 @@ set_rcvbuf:
 #endif
 
 	case SO_MAX_PACING_RATE:
+		if (val != ~0U)
+			cmpxchg(&sk->sk_pacing_status,
+				SK_PACING_NONE,
+				SK_PACING_NEEDED);
 		sk->sk_max_pacing_rate = val;
 		sk->sk_pacing_rate = min(sk->sk_pacing_rate,
 					 sk->sk_max_pacing_rate);
@@ -1538,6 +1550,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 				af_family_clock_key_strings[newsk->sk_family]);
 
 		newsk->sk_dst_cache	= NULL;
+		newsk->sk_dst_pending_confirm = 0;
 		newsk->sk_wmem_queued	= 0;
 		newsk->sk_forward_alloc = 0;
 		atomic_set(&newsk->sk_drops, 0);

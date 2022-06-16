@@ -1,5 +1,5 @@
 /* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018 XiaoMi, Inc.
+ * Copyright (C) 2018-2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -88,14 +88,19 @@ static int sde_backlight_device_update_status(struct backlight_device *bd)
 	if (brightness > display->panel->bl_config.bl_max_level)
 		brightness = display->panel->bl_config.bl_max_level;
 
-	/* map UI brightness into driver backlight level with rounding */
-	bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
-			display->panel->bl_config.brightness_max_level);
+	if (!display->panel->bl_config.bl_remap_flag) {
+		/* map UI brightness into driver backlight level with rounding */
+		bl_lvl = mult_frac(brightness, display->panel->bl_config.bl_max_level,
+				display->panel->bl_config.brightness_max_level);
+	} else {
+		bl_lvl = brightness;
+	}
 
 	if (!bl_lvl && brightness)
 		bl_lvl = 1;
 
-	if (bl_lvl && bl_lvl < display->panel->bl_config.bl_min_level)
+	if (bl_lvl && bl_lvl < display->panel->bl_config.bl_min_level
+		&& !display->panel->bl_config.bl_remap_flag)
 		bl_lvl = display->panel->bl_config.bl_min_level;
 
 	if (display->panel->bl_config.bl_update ==
@@ -610,6 +615,41 @@ static int _sde_connector_update_dirty_properties(
 	return 0;
 }
 
+void sde_connector_update_fod_hbm(struct drm_connector *connector)
+{
+	static atomic_t effective_status = ATOMIC_INIT(false);
+	struct sde_crtc_state *cstate;
+	struct sde_connector *c_conn;
+	struct dsi_display *display;
+	bool status;
+
+	if (!connector) {
+		SDE_ERROR("invalid connector\n");
+		return;
+	}
+
+	c_conn = to_sde_connector(connector);
+	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI)
+		return;
+
+	display = (struct dsi_display *) c_conn->display;
+
+	if (!c_conn->encoder || !c_conn->encoder->crtc ||
+			!c_conn->encoder->crtc->state)
+		return;
+
+	cstate = to_sde_crtc_state(c_conn->encoder->crtc->state);
+	status = cstate->fod_dim_layer != NULL;
+	if (atomic_xchg(&effective_status, status) == status)
+		return;
+
+	mutex_lock(&display->panel->panel_lock);
+	dsi_panel_set_fod_hbm(display->panel, status);
+	mutex_unlock(&display->panel->panel_lock);
+
+	dsi_display_set_fod_ui(display, status);
+}
+
 int sde_connector_pre_kickoff(struct drm_connector *connector)
 {
 	struct sde_connector *c_conn;
@@ -642,6 +682,8 @@ int sde_connector_pre_kickoff(struct drm_connector *connector)
 	params.hdr_meta = &c_state->hdr_meta;
 
 	SDE_EVT32_VERBOSE(connector->base.id);
+
+	sde_connector_update_fod_hbm(connector);
 
 	rc = c_conn->ops.pre_kickoff(connector, c_conn->display, &params);
 
@@ -699,6 +741,10 @@ void sde_connector_helper_bridge_enable(struct drm_connector *connector)
 		sde_encoder_wait_for_event(c_conn->encoder,
 				MSM_ENC_TX_COMPLETE);
 	c_conn->allow_bl_update = true;
+
+	/*after the first frame,need to delay some time for visionox*/
+	if (display->panel->bl_config.bl_update_delay)
+		msleep(display->panel->bl_config.bl_update_delay);
 
 	if (!display->is_first_boot && c_conn->bl_device) {
 		c_conn->bl_device->props.power = FB_BLANK_UNBLANK;

@@ -393,7 +393,7 @@ void tcp_init_sock(struct sock *sk)
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
-	minmax_reset(&tp->rtt_min, tcp_time_stamp, ~0U);
+	minmax_reset(&tp->rtt_min, tcp_jiffies32, ~0U);
 
 	/* So many TCP implementations out there (incorrectly) count the
 	 * initial SYN frame in their delayed-ACK and congestion control
@@ -414,7 +414,6 @@ void tcp_init_sock(struct sock *sk)
 	u64_stats_init(&tp->syncp);
 
 	tp->reordering = sock_net(sk)->ipv4.sysctl_tcp_reordering;
-	tcp_enable_early_retrans(tp);
 	tcp_assign_congestion_control(sk);
 
 	tp->tsoffset = 0;
@@ -677,9 +676,9 @@ static void tcp_push(struct sock *sk, int flags, int mss_now,
 	if (tcp_should_autocork(sk, skb, size_goal)) {
 
 		/* avoid atomic op if TSQ_THROTTLED bit is already set */
-		if (!test_bit(TSQ_THROTTLED, &tp->tsq_flags)) {
+		if (!test_bit(TSQ_THROTTLED, &sk->sk_tsq_flags)) {
 			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPAUTOCORKING);
-			set_bit(TSQ_THROTTLED, &tp->tsq_flags);
+			set_bit(TSQ_THROTTLED, &sk->sk_tsq_flags);
 		}
 		/* It is possible TX completion already happened
 		 * before we set TSQ_THROTTLED.
@@ -1017,8 +1016,11 @@ do_error:
 		goto out;
 out_err:
 	/* make sure we wake any epoll edge trigger waiter */
-	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 &&
+		     err == -EAGAIN)) {
 		sk->sk_write_space(sk);
+		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
+	}
 	return sk_stream_error(sk, flags, err);
 }
 
@@ -1373,8 +1375,11 @@ do_error:
 out_err:
 	err = sk_stream_error(sk, flags, err);
 	/* make sure we wake any epoll edge trigger waiter */
-	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 &&
+		     err == -EAGAIN)) {
 		sk->sk_write_space(sk);
+		tcp_chrono_stop(sk, TCP_CHRONO_SNDBUF_LIMITED);
+	}
 	release_sock(sk);
 	return err;
 }
@@ -2545,11 +2550,6 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	case TCP_THIN_DUPACK:
 		if (val < 0 || val > 1)
 			err = -EINVAL;
-		else {
-			tp->thin_dupack = val;
-			if (tp->thin_dupack)
-				tcp_disable_early_retrans(tp);
-		}
 		break;
 
 	case TCP_REPAIR:
@@ -2749,7 +2749,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (!tp->repair)
 			err = -EPERM;
 		else
-			tp->tsoffset = val - tcp_time_stamp;
+			tp->tsoffset = val - tcp_time_stamp_raw();
 		break;
 	case TCP_REPAIR_WINDOW:
 		err = tcp_repair_set_window(tp, optval, optlen);
@@ -2791,12 +2791,31 @@ int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL(compat_tcp_setsockopt);
 #endif
 
+static void tcp_get_info_chrono_stats(const struct tcp_sock *tp,
+				      struct tcp_info *info)
+{
+	u64 stats[__TCP_CHRONO_MAX], total = 0;
+	enum tcp_chrono i;
+
+	for (i = TCP_CHRONO_BUSY; i < __TCP_CHRONO_MAX; ++i) {
+		stats[i] = tp->chrono_stat[i - 1];
+		if (i == tp->chrono_type)
+			stats[i] += tcp_jiffies32 - tp->chrono_start;
+		stats[i] *= USEC_PER_SEC / HZ;
+		total += stats[i];
+	}
+
+	info->tcpi_busy_time = total;
+	info->tcpi_rwnd_limited = stats[TCP_CHRONO_RWND_LIMITED];
+	info->tcpi_sndbuf_limited = stats[TCP_CHRONO_SNDBUF_LIMITED];
+}
+
 /* Return information about state of tcp endpoint in API format. */
 void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct tcp_sock *tp = tcp_sk(sk); /* iff sk_type == SOCK_STREAM */
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 now = tcp_time_stamp, intv;
+	u32 now, intv;
 	unsigned int start;
 	int notsent_bytes;
 	u64 rate64;
@@ -2846,6 +2865,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_retrans = tp->retrans_out;
 	info->tcpi_fackets = tp->fackets_out;
 
+	now = tcp_jiffies32;
 	info->tcpi_last_data_sent = jiffies_to_msecs(now - tp->lsndtime);
 	info->tcpi_last_data_recv = jiffies_to_msecs(now - icsk->icsk_ack.lrcvtime);
 	info->tcpi_last_ack_recv = jiffies_to_msecs(now - tp->rcv_tstamp);
@@ -2859,7 +2879,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_advmss = tp->advmss;
 	info->tcpi_reordering = tp->reordering;
 
-	info->tcpi_rcv_rtt = jiffies_to_usecs(tp->rcv_rtt_est.rtt)>>3;
+	info->tcpi_rcv_rtt = tp->rcv_rtt_est.rtt_us >> 3;
 	info->tcpi_rcv_space = tp->rcvq_space.space;
 
 	info->tcpi_total_retrans = tp->total_retrans;
@@ -2867,6 +2887,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	rate = READ_ONCE(sk->sk_pacing_rate);
 	rate64 = rate != ~0U ? rate : ~0ULL;
 	put_unaligned(rate64, &info->tcpi_pacing_rate);
+	tcp_get_info_chrono_stats(tp, info);
 
 	rate = READ_ONCE(sk->sk_max_pacing_rate);
 	rate64 = rate != ~0U ? rate : ~0ULL;
@@ -2897,6 +2918,30 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	}
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
+
+struct sk_buff *tcp_get_timestamping_opt_stats(const struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *stats;
+	struct tcp_info info;
+
+	stats = alloc_skb(5 * nla_total_size_64bit(sizeof(u64)), GFP_ATOMIC);
+	if (!stats)
+		return NULL;
+
+	tcp_get_info_chrono_stats(tp, &info);
+	nla_put_u64_64bit(stats, TCP_NLA_BUSY,
+			  info.tcpi_busy_time, TCP_NLA_PAD);
+	nla_put_u64_64bit(stats, TCP_NLA_RWND_LIMITED,
+			  info.tcpi_rwnd_limited, TCP_NLA_PAD);
+	nla_put_u64_64bit(stats, TCP_NLA_SNDBUF_LIMITED,
+			  info.tcpi_sndbuf_limited, TCP_NLA_PAD);
+	nla_put_u64_64bit(stats, TCP_NLA_DATA_SEGS_OUT,
+			  tp->data_segs_out, TCP_NLA_PAD);
+	nla_put_u64_64bit(stats, TCP_NLA_TOTAL_RETRANS,
+			  tp->total_retrans, TCP_NLA_PAD);
+	return stats;
+}
 
 static int do_tcp_getsockopt(struct sock *sk, int level,
 		int optname, char __user *optval, int __user *optlen)
@@ -3004,8 +3049,9 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_THIN_LINEAR_TIMEOUTS:
 		val = tp->thin_lto;
 		break;
+
 	case TCP_THIN_DUPACK:
-		val = tp->thin_dupack;
+		val = 0;
 		break;
 
 	case TCP_REPAIR:
@@ -3063,7 +3109,7 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 
 	case TCP_TIMESTAMP:
-		val = tcp_time_stamp + tp->tsoffset;
+		val = tcp_time_stamp_raw() + tp->tsoffset;
 		break;
 	case TCP_NOTSENT_LOWAT:
 		val = tp->notsent_lowat;

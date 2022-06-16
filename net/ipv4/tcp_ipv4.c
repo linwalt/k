@@ -370,8 +370,9 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	struct sock *sk;
 	struct sk_buff *skb;
 	struct request_sock *fastopen;
-	__u32 seq, snd_una;
-	__u32 remaining;
+	u32 seq, snd_una;
+	s32 remaining;
+	u32 delta_us;
 	int err;
 	struct net *net = dev_net(icmp_skb->dev);
 
@@ -451,7 +452,7 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 			if (!sock_owned_by_user(sk)) {
 				tcp_v4_mtu_reduced(sk);
 			} else {
-				if (!test_and_set_bit(TCP_MTU_REDUCED_DEFERRED, &tp->tsq_flags))
+				if (!test_and_set_bit(TCP_MTU_REDUCED_DEFERRED, &sk->sk_tsq_flags))
 					sock_hold(sk);
 			}
 			goto out;
@@ -478,11 +479,12 @@ void tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 					       TCP_TIMEOUT_INIT;
 		icsk->icsk_rto = inet_csk_rto_backoff(icsk, TCP_RTO_MAX);
 
+		tcp_mstamp_refresh(tp);
+		delta_us = (u32)(tp->tcp_mstamp - skb->skb_mstamp);
 		remaining = icsk->icsk_rto -
-			    min(icsk->icsk_rto,
-				tcp_time_stamp - tcp_skb_timestamp(skb));
+			    usecs_to_jiffies(delta_us);
 
-		if (remaining) {
+		if (remaining > 0) {
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 						  remaining, TCP_RTO_MAX);
 		} else {
@@ -806,7 +808,7 @@ static void tcp_v4_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	tcp_v4_send_ack(sk, skb,
 			tcptw->tw_snd_nxt, tcptw->tw_rcv_nxt,
 			tcptw->tw_rcv_wnd >> tw->tw_rcv_wscale,
-			tcp_time_stamp + tcptw->tw_ts_offset,
+			tcp_time_stamp_raw() + tcptw->tw_ts_offset,
 			tcptw->tw_ts_recent,
 			tw->tw_bound_dev_if,
 			tcp_twsk_md5_key(tcptw),
@@ -834,7 +836,7 @@ static void tcp_v4_reqsk_send_ack(const struct sock *sk, struct sk_buff *skb,
 	tcp_v4_send_ack(sk, skb, seq,
 			tcp_rsk(req)->rcv_nxt,
 			req->rsk_rcv_wnd >> inet_rsk(req)->rcv_wscale,
-			tcp_time_stamp,
+			tcp_time_stamp_raw(),
 			req->ts_recent,
 			0,
 			tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&ip_hdr(skb)->saddr,
@@ -2261,7 +2263,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 	int state;
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS ||
-	    icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
+	    icsk->icsk_pending == ICSK_TIME_REO_TIMEOUT ||
 	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
 		timer_active	= 1;
 		timer_expires	= icsk->icsk_timeout;
@@ -2477,7 +2479,7 @@ static int __net_init tcp_sk_init(struct net *net)
 		*per_cpu_ptr(net->ipv4.tcp_sk, cpu) = sk;
 	}
 
-	net->ipv4.sysctl_tcp_ecn = 2;
+	net->ipv4.sysctl_tcp_ecn = 1;
 	net->ipv4.sysctl_tcp_ecn_fallback = 1;
 
 	net->ipv4.sysctl_tcp_base_mss = TCP_BASE_MSS;
