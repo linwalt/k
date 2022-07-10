@@ -24,7 +24,7 @@ jobs:
       with:
         arch: arm64
         compiler: proton-clang/9fb011b/binutils
-        defconfig: beryllium_defconfig
+        defconfig: vendor/xiaomi/mi845_defconfig
         image: Image.gz-dtb
 
     - name: Release build
