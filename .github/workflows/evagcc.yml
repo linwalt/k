@@ -13,24 +13,24 @@ jobs:
     - name: update apps
       run: pacman -Syyu --noconfirm
     - name: install build apps
-      run: pacman -Syyu --noconfirm wget nano asp github-cli kmod libelf pahole xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick cmake svn lzip git make patchelf zip inetutils python2 lld llvm base-devel clang bc ccache multilib-devel glibc z3 sudo jdk8-openjdk bison cmake flex libelf cpio unzip dpkg ninja openssl python3 uboot-tools neofetch ncurses
-    - uses: actions/checkout@v2
-    - name: Set build date
-      id: get-date
-      run: | 
-        echo ::set-output name=date::$(/bin/date -u "+%Y%m%d")
-    - name: toolchain & zip
-      run: git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 ~/tc/gcc64 && git clone --depth=1 https://github.com/mvaisakh/gcc-arm ~/tc/gcc32 && git clone --depth=1 https://github.com/walternewtz/AnyKernel3 ~/anykernel3
-    - name: configure
-      run: make O=out ARCH=arm64 mi845_defconfig
-    - name: make
-      run: make O=out ARCH=arm64 CROSS_COMPILE=~/tc/gcc64/bin/aarch64-elf- CROSS_COMPILE_ARM32=~/tc/gcc32/bin/arm-eabi- -j$(nproc --all)
-    - name: Kernel Image
-      run: cp out/arch/arm64/boot/Image.gz-dtb /home/runner/anykernel3/Image.gz-dtb
-    - name: zip it
-      run:  cd /home/runner/anykernel3 && zip -r9 lineva-${{ steps.get-date.outputs.date }}.zip  * -x README lineva-${{ steps.get-date.outputs.date }}.zip
-    - name: upload artifacts
-      uses: actions/upload-artifact@v1
-      with:
-        name: kernel
-        path: /home/runner/anykernel3/lineva-${{ steps.get-date.outputs.date }}.zip
+      run: pacman -Syyu --noconfirm wget nano bison curl aosp-devel asp github-cli kmod libelf pahole xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick cmake svn lzip git make patchelf zip inetutils python2 lld llvm base-devel clang bc ccache multilib-devel glibc z3 sudo jdk8-openjdk bison cmake flex libelf cpio unzip dpkg ninja openssl python3 uboot-tools neofetch ncurses
+  #  - uses: actions/checkout@v2
+ #   - name: Set build date
+   #   id: get-date
+   #   run: | 
+   #     echo ::set-output name=date::$(/bin/date -u "+%Y%m%d")
+  #  - name: toolchain & zip
+   #   run: git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 ~/tc/gcc64 && git clone --depth=1 https://github.com/mvaisakh/gcc-arm ~/tc/gcc32 && git clone --depth=1 https://github.com/walternewtz/AnyKernel3 ~/anykernel3
+ #   - name: configure
+ #     run: make O=out ARCH=arm64 mi845_defconfig
+ #   - name: make
+  #    run: make O=out ARCH=arm64 CROSS_COMPILE=~/tc/gcc64/bin/aarch64-elf- CROSS_COMPILE_ARM32=~/tc/gcc32/bin/arm-eabi- -j$(nproc --all)
+ #   - name: Kernel Image
+  #    run: cp out/arch/arm64/boot/Image.gz-dtb /home/runner/anykernel3/Image.gz-dtb
+ #   - name: zip it
+  #    run:  cd /home/runner/anykernel3 && zip -r9 lineva-${{ steps.get-date.outputs.date }}.zip  * -x README lineva-${{ steps.get-date.outputs.date }}.zip
+#    - name: upload artifacts
+   #   uses: actions/upload-artifact@v1
+ #     with:
+     #   name: kernel
+     #   path: /home/runner/anykernel3/lineva-${{ steps.get-date.outputs.date }}.zip
