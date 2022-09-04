@@ -12,8 +12,10 @@ jobs:
     steps:
     - name: update apps
       run: pacman -Syyu --noconfirm
+    - name: multilib
+      run: sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
     - name: install build apps
-      run: pacman -Syyu --noconfirm wget nano bison curl aosp-devel asp github-cli kmod libelf pahole xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick cmake svn lzip git make patchelf zip inetutils python2 lld llvm base-devel clang bc ccache multilib-devel glibc z3 sudo jdk8-openjdk bison cmake flex libelf cpio unzip dpkg ninja openssl python3 uboot-tools neofetch ncurses
+      run: pacman -Syyu --noconfirm wget nano bison aosp-devel curl flex imagemagick lib32-ncurses lib32-readline lib32-zlib gperf asp github-cli kmod libelf pahole xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick cmake svn lzip git make patchelf zip inetutils python2 lld llvm base-devel clang bc ccache multilib-devel glibc z3 sudo jdk8-openjdk bison cmake flex libelf cpio unzip dpkg ninja openssl python3 uboot-tools neofetch ncurses
   #  - uses: actions/checkout@v2
  #   - name: Set build date
    #   id: get-date
