@@ -15,9 +15,9 @@ jobs:
       run: | 
         echo ::set-output name=date::$(/bin/date -u "+%Y%m%d")
     - name: toolchain & zip
-      run: git clone --depth=1 https://github.com/mvaisakh/gcc-arm64 ~/tc/gcc64 && git clone --depth=1 https://github.com/mvaisakh/gcc-arm ~/tc/gcc32 && git clone --depth=1 https://github.com/walternewtz/AnyKernel3 ~/anykernel3
+      run: git clone --depth=1 https://github.com/Dhruvgera/EvaGCC-arm64 ~/tc/gcc64 && git clone --depth=1 https://github.com/Dhruvgera/EvaGCC-arm ~/tc/gcc32 && git clone --depth=1 https://github.com/walternewtz/AnyKernel3 ~/anykernel3
     - name: configure
-      run: make O=out ARCH=arm64 beryllium_defconfig
+      run: make O=out ARCH=arm64 eva_defconfig
     - name: make
       run: make O=out ARCH=arm64 CROSS_COMPILE=~/tc/gcc64/bin/aarch64-elf- CROSS_COMPILE_ARM32=~/tc/gcc32/bin/arm-eabi- -j$(nproc --all)
     - name: Kernel Image
