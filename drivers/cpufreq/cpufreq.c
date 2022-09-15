@@ -31,6 +31,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/tick.h>
 #ifdef CONFIG_SMP
+#include <linux/battery_saver.h>
 #include <linux/sched.h>
 #endif
 #include <trace/events/power.h>
@@ -2342,7 +2343,13 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	ret = cpufreq_driver->verify(new_policy);
 	if (ret)
 		return ret;
-
+        #ifdef CONFIG_ARCH_SDM845
+	/*
+	 * Limit gold cluster to 1996800 kHz for kernelspace battery saver on
+	 */
+        if (is_battery_saver_on())
+	cpufreq_verify_within_limits(new_policy, new_policy->min, 1996800);
+        #endif
 	/* notification of the new policy */
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_NOTIFY, new_policy);
