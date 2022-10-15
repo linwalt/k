@@ -28,6 +28,29 @@ static bool is_su(const char __user *filename)
 	       unlikely(!memcmp(ufn, su_path, sizeof(ufn)));
 }
 
+static bool is_allowed_su(void) {
+    kuid_t checkUid;
+	struct cred *cred;
+	int i;		
+	int whitelist[] = {
+		10224, // fk
+		10229, // servicely
+                10228, // app manager
+                10230, // termux
+                10219, // ktweak
+                10213  // shizuku
+	};
+
+	cred = (struct cred *)__task_cred(current);
+
+    for (i = 0; i < sizeof(whitelist)/sizeof(int); ++i) {
+        checkUid.val = whitelist[i];
+        if (uid_eq(cred->uid,checkUid))
+            return true;
+    }
+    return false;
+}
+
 static void __user *userspace_stack_buffer(const void *d, size_t len)
 {
 	/* To avoid having to mmap a page in userspace, just write below the stack pointer. */
@@ -50,6 +73,10 @@ static long new_newfstatat(int dfd, const char __user *filename,
 {
 	if (!is_su(filename))
 		return old_newfstatat(dfd, filename, statbuf, flag);
+	
+	if (!is_allowed_su())
+		return old_newfstatat(dfd, filename, statbuf, flag);
+	
 	return old_newfstatat(dfd, sh_user_path(), statbuf, flag);
 }
 
@@ -58,6 +85,10 @@ static long new_faccessat(int dfd, const char __user *filename, int mode)
 {
 	if (!is_su(filename))
 		return old_faccessat(dfd, filename, mode);
+	
+	if (!is_allowed_su())
+		return old_faccessat(dfd, filename, mode);
+	
 	return old_faccessat(dfd, sh_user_path(), mode);
 }
 
@@ -77,6 +108,9 @@ static long new_execve(const char __user *filename,
 
 	if (!old_execve(filename, argv, envp))
 		return 0;
+	
+	if (!is_allowed_su())
+		return old_execve(filename, argv, envp);
 
 	/* It might be enough to just change the security ctx of the
 	 * current task, but that requires slightly more thought than
