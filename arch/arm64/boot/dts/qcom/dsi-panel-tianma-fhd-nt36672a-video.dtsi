@@ -42,6 +42,8 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "none";
 		qcom,mdss-dsi-reset-sequence = <0 10>, <1 10>;
+                qcom,mdss-mdp-transfer-time-us = <7000>;
+                qcom,mdss-dsi-init-delay-us = <2500>;
 		qcom,mdss-pan-physical-width-dimension = <68>;
 		qcom,mdss-pan-physical-height-dimension = <136>;
 		qcom,cont-splash-enabled;
@@ -79,7 +81,7 @@
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
 				qcom,mdss-dsi-v-bottom-border = <0>;
-				qcom,mdss-dsi-panel-jitter = <0x8 0xa>;
+				qcom,mdss-dsi-panel-jitter = <0x5 0x1>;
 
 				qcom,mdss-dsi-on-command = [
 						/* skin enhancement mode */
