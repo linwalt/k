@@ -22,10 +22,7 @@ HOSTCC=clang \
                STRIP=llvm-strip \
 	       READELF=llvm-readelf \
 	       OBJSIZE=llvm-size \
-#NM=llvm-nm \
-#OBJCOPY=llvm-objcopy \
-#OBJDUMP=llvm-objdump \
-#STRIP=llvm-strip \
+
 CLANG_TRIPLE=aarch64-linux-gnu- \
 CROSS_COMPILE=aarch64-linux-android- \
 CROSS_COMPILE_ARM32=${gccpath}/arm-linux-androideabi-"
