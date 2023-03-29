@@ -1,6 +1,8 @@
 #! /bin/sh
 set -e o pipefail
 
+git clone --depth=1 https://github.com/walternewtz/AnyKernel3 ~/anykernel3
+
 git clone https://gitlab.com/ImSurajxD/clang-r450784d /home/runner/clang-r450784d --depth 1
 export clangpath=/home/runner/clang-r450784d/bin
 export KBUILD_COMPILER_STRING="$(/home/runner/clang-r450784d/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
