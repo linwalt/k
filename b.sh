@@ -1,10 +1,8 @@
 #! /bin/sh
 set -e o pipefail
 
-mkdir /home/runner/clang_14_0_6
-wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/a71fa4c09d7109d611ee63964fc9fca58fee38cd/clang-r450784d.tar.gz -O /home/runner/clang_14_0_6/clang-r450784d.tar.gz
-tar -xvzf /home/runner/clang_14_0_6/clang-r450784d.tar.gz  -C /home/runner/clang_14_0_6
-export clangpath=/home/runner/clang_14_0_6/bin
+git clone https://gitlab.com/ImSurajxD/clang-r450784d /home/runner/clang-r450784d --depth 1
+export clangpath=/home/runner/clang-r450784d/bin
 git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 -b lineage-19.1 /home/runner/arm-linux-androideabi-4.9 --depth 1
 export gccpath=/home/runner/arm-linux-androideabi-4.9/bin
 PATH=${clangpath}:$PATH
