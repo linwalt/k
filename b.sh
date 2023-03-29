@@ -3,15 +3,19 @@ set -e o pipefail
 
 git clone https://gitlab.com/ImSurajxD/clang-r450784d /home/runner/clang-r450784d --depth 1
 export clangpath=/home/runner/clang-r450784d/bin
-git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 -b lineage-19.1 /home/runner/arm-linux-androideabi-4.9 --depth 1
-export gccpath=/home/runner/arm-linux-androideabi-4.9/bin
+git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 -b lineage-19.1 /home/runner/gcc --depth 1
+git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git --depth=1 /home/runner/gcc32
+	
+export gccpath=/home/runner/gcc/bin
 PATH=${clangpath}:$PATH
 args="-j$(nproc --all) \
 O=out \
 ARCH=arm64 \
 CC=clang \
-LLVM=1 \
-LLVM_IAS=1 \
+NM=llvm-nm \
+OBJCOPY=llvm-objcopy \
+OBJDUMP=llvm-objdump \
+STRIP=llvm-strip \
 CLANG_TRIPLE=aarch64-linux-gnu- \
 CROSS_COMPILE=aarch64-linux-android- \
 CROSS_COMPILE_ARM32=${gccpath}/arm-linux-androideabi-"
