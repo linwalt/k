@@ -10,7 +10,6 @@ git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-l
  	
 PATH="/home/runner/clang-r450784d/bin:/home/runner/gcc/bin:/home/runner/gcc32/bin:${PATH}"
 	
-PATH=${clangpath}:$PATH
 args="-j$(nproc --all) \
 O=out \
 ARCH=arm64 \
