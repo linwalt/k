@@ -3,11 +3,13 @@ set -e o pipefail
 
 git clone https://gitlab.com/ImSurajxD/clang-r450784d /home/runner/clang-r450784d --depth 1
 export clangpath=/home/runner/clang-r450784d/bin
+export KBUILD_COMPILER_STRING=$(/home/runner/clang-r450784d/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
+     
 git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 -b lineage-19.1 /home/runner/gcc --depth 1
 git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git --depth=1 /home/runner/gcc32
-export KBUILD_COMPILER_STRING=$(/home/runner/clang-r450784d/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
-      	
+ 	
 export gccpath=/home/runner/gcc/bin
+
 PATH=${clangpath}:$PATH
 args="-j$(nproc --all) \
 O=out \
