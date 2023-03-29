@@ -8,8 +8,8 @@ export KBUILD_COMPILER_STRING="$(/home/runner/clang-r450784d/bin/clang --version
 git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 -b lineage-19.1 /home/runner/gcc --depth 1
 git clone https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9.git --depth=1 /home/runner/gcc32
  	
-export gccpath=/home/runner/gcc/bin
-
+PATH="/home/runner/clang-r450784d/bin:/home/runner/gcc/bin:/home/runner/gcc32/bin:${PATH}"
+	
 PATH=${clangpath}:$PATH
 args="-j$(nproc --all) \
 O=out \
@@ -27,7 +27,7 @@ HOSTCC=clang \
 
 CLANG_TRIPLE=aarch64-linux-gnu- \
 CROSS_COMPILE=aarch64-linux-android- \
-CROSS_COMPILE_ARM32=${gccpath}/arm-linux-androideabi-"
+CROSS_COMPILE_ARM32=arm-linux-androideabi-"
 make ${args} beryllium_defconfig
 make ${args}
 
